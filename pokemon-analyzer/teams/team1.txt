@@ -1,0 +1,57 @@
+Slowbro-Mega @ Slowbronite
+Ability: Regenerator
+EVs: 252 HP / 252 Def / 4 SpD
+Bold Nature
+IVs: 0 Atk
+- Scald
+- Psyshock
+- Counter
+- Slack Off
+
+Amoonguss @ Rocky Helmet
+Ability: Regenerator
+EVs: 252 HP / 248 Def / 8 Spe
+Bold Nature
+IVs: 0 Atk
+- Spore
+- Giga Drain
+- Clear Smog
+- Gastro Acid
+
+Blissey @ Leftovers
+Ability: Natural Cure
+EVs: 252 HP / 252 Def / 4 SpD
+Bold Nature
+IVs: 0 Atk
+- Seismic Toss
+- Toxic
+- Soft-Boiled
+- Heal Bell
+
+Quagsire @ Leftovers
+Ability: Unaware
+EVs: 252 HP / 252 Def / 4 SpD
+Relaxed Nature
+- Scald
+- Earthquake
+- Recover
+- Toxic
+
+Gligar @ Eviolite
+Ability: Immunity
+EVs: 252 HP / 156 Def / 100 SpD
+Impish Nature
+- Earthquake
+- Roost
+- Defog
+- Knock Off
+
+Stakataka @ Leftovers
+Ability: Beast Boost
+EVs: 252 HP / 4 Def / 252 SpD
+Sassy Nature
+IVs: 0 Spe
+- Gyro Ball
+- Rock Blast
+- Stealth Rock
+- Protect

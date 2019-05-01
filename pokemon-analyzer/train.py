@@ -4,81 +4,122 @@ import tensorflow as tf
 import json
 
 
+
 def main():
 
-    learning_rate = 0.01
-    training_iteration = 30
-    batch_size = 100
-    display_step = 2
+    # Validation parameters
+    folds = 5
+
+    ###########################################
+    ###########################################
+    ###########################################
 
     teams_dataset = parser.parseTeams()
-    train_x, train_y = transform_teams(teams_dataset)
-    test_x, test_y = train_x, train_y
 
-    print ("SEE SIZES")
-    print (np.shape(train_x))
-    print (np.shape(train_y))
-    print (np.shape(test_x))
-    print (np.shape(test_y))
+    data_x, data_y = transform_teams(teams_dataset)
 
-    print("starting tensorflow...")
+    # We shuffle training data randomly
+    p = np.random.permutation(len(data_x))
+    data_x, data_y = data_x[p], data_y[p]
 
-    tf_x = tf.placeholder("float", [None, 950])
-    tf_y = tf.placeholder("float", [None, 742])
+    train_x, train_y = data_x[:-len(data_x)/folds], data_y[:-len(data_x)/folds]
+    test_x, test_y = data_x[-len(data_x)/folds:], data_y[-len(data_x)/folds:]
 
-    W = tf.Variable(tf.zeros([950,742]))
-    b = tf.Variable(tf.zeros([742]))
+    print ("Training shape: "+str(np.shape(train_x)) + ", "+str(np.shape(train_y)))
+    print ("Testing shape: "+str(np.shape(test_x)) + ", "+str(np.shape(test_y)))
 
-    with tf.name_scope("Wx_b") as scope:
-        # constructs linear model
-        model = tf.nn.softmax(tf.matmul(tf_x, W) + b)
+    ###########################################
+    ###########################################
+    ###########################################
 
-    w_h = tf.summary.histogram("weights",W)
-    w_h = tf.summary.histogram("biases",b)
+    # Parameters
+    learning_rate = 0.001
+    training_epochs = 300
+    batch_size = 100
+    display_step = 1
 
-    with tf.name_scope("cost_function") as scope:
-        # minimize error using entropy
-        cost_function = -tf.reduce_sum(tf_y*tf.log(model))
-        # create summary to monitor it
-        tf.summary.scalar("cost_function", cost_function)
+    # Network Parameters
+    n_hidden_1 = 256  # 1st layer number of neurons
+    n_hidden_2 = 256  # 2nd layer number of neurons
+    n_hidden_3 = 256  # 2nd layer number of neurons
+    n_input = 950  # MNIST data input (img shape: 28*28)
+    n_classes = 742  # MNIST total classes (0-9 digits)
+    #    n_input = 784  # MNIST data input (img shape: 28*28)
+    #    n_classes = 10  # MNIST total classes (0-9 digits)
 
-    with tf.name_scope("train") as scope:
-        # Gradient descent
-        optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(cost_function)
+    # tf Graph input
+    X = tf.placeholder("float", [None, n_input])
+    Y = tf.placeholder("float", [None, n_classes])
 
-    init = tf.initialize_all_variables()
+    # Store layers weight & bias
+    weights = {
+        'h1': tf.Variable(tf.random_normal([n_input, n_hidden_1])),
+        'h2': tf.Variable(tf.random_normal([n_hidden_1, n_hidden_2])),
+        'h3': tf.Variable(tf.random_normal([n_hidden_1, n_hidden_3])),
+        'out': tf.Variable(tf.random_normal([n_hidden_2, n_classes]))
+    }
+    biases = {
+        'b1': tf.Variable(tf.random_normal([n_hidden_1])),
+        'b2': tf.Variable(tf.random_normal([n_hidden_2])),
+        'b3': tf.Variable(tf.random_normal([n_hidden_3])),
+        'out': tf.Variable(tf.random_normal([n_classes]))
+    }
 
-    merged_summary_op = tf.summary.merge_all()
+    # Create model
+    def multilayer_perceptron(x):
+        # Hidden fully connected layer with 256 neurons
+        layer_1 = tf.add(tf.matmul(x, weights['h1']), biases['b1'])
+        # Hidden fully connected layer with 256 neurons
+        layer_2 = tf.add(tf.matmul(layer_1, weights['h2']), biases['b2'])
+        # Hidden fully connected layer with 256 neurons
+        layer_3 = tf.add(tf.matmul(layer_2, weights['h3']), biases['b3'])
+        # Output fully connected layer with a neuron for each class
+        out_layer = tf.matmul(layer_3, weights['out']) + biases['out']
+        return out_layer
 
-    #Launch graph
+    # Construct model
+    logits = multilayer_perceptron(X)
+
+    # Define loss and optimizer
+    loss_op = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
+        logits=logits, labels=Y))
+    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+    train_op = optimizer.minimize(loss_op)
+    # Initializing the variables
+    init = tf.global_variables_initializer()
+
     with tf.Session() as sess:
         sess.run(init)
 
-        summary_writer = tf.summary.FileWriter('/tmp/tensorflow_logs',graph_def=sess.graph_def)
-
         # Training cycle
-        for iteration in range(training_iteration):
-            avg_cost = 0
-            total_batch = int(len(train_x)/batch_size)
-            # loops over batches
+        for epoch in range(training_epochs):
+            avg_cost = 0.
+            total_batch = int(len(train_x) / batch_size)
+            # Loop over all batches
             for i in range(total_batch):
-                batch_xs = train_x[i*batch_size:(i+1)*batch_size - 1,:]
-                batch_ys = train_y[i*batch_size:(i+1)*batch_size - 1,:]
-                # fit training using batch data
-                sess.run(optimizer,feed_dict={tf_x: batch_xs, tf_y: batch_ys})
+
+                batch_x = train_x[(i*batch_size):((i+1)*batch_size)]
+                batch_y = train_y[(i*batch_size):((i+1)*batch_size)]
+
+              #  batch_x, batch_y = mnist.train.next_batch(batch_size)
+                # Run optimization op (backprop) and cost op (to get loss value)
+                _, c = sess.run([train_op, loss_op], feed_dict={X: batch_x,
+                                                                Y: batch_y})
                 # Compute average loss
-                avg_cost += sess.run(cost_function, feed_dict={tf_x: batch_xs, tf_y:batch_ys})/total_batch
-                # write logs
-                summary_str = sess.run(merged_summary_op, feed_dict={tf_x: batch_xs, tf_y:batch_ys})
-                summary_writer.add_summary(summary_str,iteration*total_batch + i)
-            # Displays log per iteration step
-            if iteration % display_step == 0:
-                print "Iteration:", '%04d' % (iteration +1), "cost=","{:.9f}".format(avg_cost)
-        # Test
-        predictions = tf.equal(tf.argmax(model,1),tf.argmax(tf_y,1))
+                avg_cost += c / total_batch
+            # Display logs per epoch step
+            if epoch % display_step == 0:
+                print("Epoch:", '%04d' % (epoch + 1), "cost={:.9f}".format(avg_cost))
+        print("Optimization Finished!")
+
+        # Test model
+        pred = tf.nn.softmax(logits)  # Apply softmax to logits
+        correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(Y, 1))
         # Calculate accuracy
-        accuracy = tf.reduce_mean(tf.cast(predictions,"float"))
-        print "Accuracy: "+accuracy.eval({tf_x: test_x, tf_y: test_y})
+        accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
+#        print("Accuracy:", accuracy.eval({X: mnist.test.images, Y: mnist.test.labels}))
+        print("Accuracy:", accuracy.eval({X: test_x, Y: test_y}))
+
 
 # We want to transforms the teams set of data into usable trainable data
 def transform_teams(teams):
@@ -119,18 +160,17 @@ def transform_teams(teams):
                "Hasty", "Serious", "Jolly", "Naive", "Modest", "Mild", "Quiet", "Bashful", "Rash",
                "Calm", "Gentle", "Sassy", "Careful", "Quirky"]
 
-    X = np.zeros(shape=(950,1))
-    Y = np.zeros(shape=(950,1))
+    X = np.zeros(shape=(1,950))
+    Y = np.zeros(shape=(1,742))
 
     for team in teams:
         for pkmn in team:
-
             moves = np.zeros(shape=(len(pkmn["Moves"]), 950))
-            movesY = np.zeros(shape=(len(pkmn["Moves"]), 1))
+            movesY = np.zeros(shape=(len(pkmn["Moves"]), 742))
 
             for i, move in enumerate(pkmn["Moves"]):
 
-                movesY[i] = moveJSON[move]["num"]
+                movesY[i][int(moveJSON[move]["num"])] = 1
 
                 pos = 0
                 # 0 0 0 0 0 1 0 0 0
@@ -219,8 +259,9 @@ def transform_teams(teams):
                     sub_pos += len(types)
                 pos += 2 * len(types)
 
-            np.append(X, moves)
-            np.append(Y, movesY)
+            X = np.concatenate((X, moves))
+            Y = np.concatenate((Y, movesY))
+    # todo: only 7 lines apparently?
     return X, Y
 
 

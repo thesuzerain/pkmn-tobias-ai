@@ -38,5 +38,6 @@ ehthumbs.db
 Thumbs.db
 
 venv/
+teams/
 
 .idea/
